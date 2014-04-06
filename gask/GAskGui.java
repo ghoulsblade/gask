@@ -14,13 +14,15 @@ import net.minecraft.client.gui.GuiTextField;
 import cpw.mods.fml.client.FMLClientHandler;
 
 public class GAskGui extends GuiScreen {
+	int iGroupID = 0;
 	int iQuestionID = 0;
 	GAskQuestion mQ;
 	GuiTextField answer_freetext;
 
-    public GAskGui(int _iQuestionID,GAskQuestion o)
+    public GAskGui(int _iGroupID,int _iQuestionID,GAskQuestion o)
     {
     	// this.editingPlayer = par1EntityPlayer;
+    	iGroupID = _iGroupID;
     	iQuestionID = _iQuestionID;
     	mQ = o;
     	GAskUtils.debug("GAskGui created");
@@ -148,7 +150,7 @@ public class GAskGui extends GuiScreen {
     	String sAnswer = "";
     	if (answer_freetext != null) sAnswer = answer_freetext.getText();
 
-    	GAskPacketHandler.SendToServer_Answer(this.iQuestionID,btn.id,sAnswer);
+    	GAskPacketHandler.SendToServer_Answer(iGroupID,iQuestionID,btn.id,sAnswer);
         FMLClientHandler.instance().getClient().displayGuiScreen(null);
     }
 

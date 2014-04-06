@@ -1,12 +1,12 @@
 package gask;
 
 
+import gask.GAsk.GAskQuestion;
+import gask.GAsk.GAskQuestionGroup;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.network.packet.Packet29DestroyEntity;
-import net.minecraft.world.WorldServer;
-import cpw.mods.fml.common.network.Player;
+import net.minecraft.server.MinecraftServer;
 
 /**
  * Created by ghoul on 02.03.14.
@@ -25,14 +25,61 @@ public class GAskCommand extends CommandBase {
 
 	@Override
 	public void processCommand(ICommandSender sender, String[] par2ArrayOfStr) {
-		GAskUtils.debug("CLagCommandInfo");
+		GAskUtils.debug("GAskCommand");
 
-		EntityPlayerMP p = GAskUtils.getPlayerByCmdSender(sender); // par1ICommandSender.getCommandSenderName()
-		WorldServer w = p.getServerForPlayer();
+		String groupname;
+		String playername;
 
-		int iQuestionID=GAsk.instance.getRandomQuestionID();
-		GAskUtils.chatMessage(sender, "sending question to player...");
-		GAskPacketHandler.SendToPlayer_Question(p.playerNetServerHandler,iQuestionID,GAsk.instance.GetQuestionByID(iQuestionID));
+		// params
+		
+		if ( par2ArrayOfStr.length < 1 ) 
+		{
+			GAskUtils.chatMessage(sender, "usage: /"+getCommandName()+" GROUPNAME [PLAYERNAME]");
+			return;
+		}
+		
+		if ( par2ArrayOfStr.length >= 2 ) 
+		{
+			groupname = par2ArrayOfStr[0];
+			playername = par2ArrayOfStr[1];
+		} 
+		else
+		{
+			groupname = par2ArrayOfStr[0];
+			playername = sender.getCommandSenderName();
+		}
+		
+
+		//EntityPlayerMP p = GAskUtils.getPlayerByCmdSender(sender); // par1ICommandSender.getCommandSenderName()
+		EntityPlayerMP p = MinecraftServer.getServer().getConfigurationManager().getPlayerForUsername(playername);
+		if (p == null)
+		{
+			GAskUtils.chatMessage(sender, "player not found: "+playername);
+			return;
+		}
+
+		GAskQuestionGroup group = GAsk.instance.getQuestionGroupByName(groupname);
+		if (group == null)
+		{
+			GAskUtils.chatMessage(sender, "group not found: "+groupname);
+			return;
+		}
+		
+		
+		/// TODO:  /gask frizzleandpop math   : trigger first question from math.cfg , ask them all in order, then print num_right/num_wrong
+
+		//int iQuestionID=GAsk.instance.getRandomQuestionID();
+		int iQuestionID=0;
+		GAskQuestion q = group.getQuestionByID(iQuestionID);
+
+		if (q == null)
+		{
+			GAskUtils.chatMessage(sender, "no question in group: "+groupname);
+			return;
+		}
+		
+		GAskUtils.chatMessage(sender, "sending questions to player...");
+		GAskPacketHandler.SendToPlayer_Question(p.playerNetServerHandler,group,iQuestionID,q);
 
 		//GAskUtils.chatMessage(sender, "use the GAskItem");
 

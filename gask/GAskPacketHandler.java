@@ -2,6 +2,7 @@ package gask;
 
 
 import gask.GAsk.GAskQuestion;
+import gask.GAsk.GAskQuestionGroup;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -58,8 +59,13 @@ public class GAskPacketHandler implements IPacketHandler {
     {
     	if (FMLCommonHandler.instance().getEffectiveSide() != Side.SERVER) return;
 
+    	int iQuestionGroupID = is.readShort();
     	int iQuestionID = is.readShort();
-    	GAskQuestion o = GAsk.instance.GetQuestionByID(iQuestionID);
+    	
+    	GAskQuestionGroup group = GAsk.instance.getQuestionGroupByID(iQuestionGroupID);
+    	if (group == null) return; // invalid group
+    	
+    	GAskQuestion o = group.getQuestionByID(iQuestionID);
     	if (o == null) return; // invalid question
     	
     	int iAnswerId = is.readShort();
@@ -67,15 +73,25 @@ public class GAskPacketHandler implements IPacketHandler {
     	
     	boolean bCorrect = false;
     	if (o.answers.length > 0 && iAnswerId == 0) bCorrect = true;
-    	for(String s : o.answers_freetext) if (s.equals(sAnswer)) bCorrect = true;
+    	String aLow = sAnswer.toLowerCase().trim();
+    	for(String s : o.answers_freetext) if (s.toLowerCase().equals(aLow)) bCorrect = true;
 
         EntityPlayerMP p = (EntityPlayerMP) player;
+        int qleft = group.questions.size() - (iQuestionID + 1);
     	if (bCorrect)
     	{
-    		GAskUtils.sendChat(p, "the answer was correct!");
+    		GAskUtils.sendChat(p, "the answer was correct! "+qleft+" more question(s)");
     	} else
     	{
-    		GAskUtils.sendChat(p, "the answer was wrong!");
+    		GAskUtils.sendChat(p, "the answer was wrong! "+qleft+" more question(s)");
+    	}
+    	
+    	// send next question in group
+    	iQuestionID += 1;
+    	if (group.questions.size() > iQuestionID)
+    	{
+        	o = group.getQuestionByID(iQuestionID);
+    		GAskPacketHandler.SendToPlayer_Question(p.playerNetServerHandler,group,iQuestionID,o);
     	}
     }
 
@@ -89,6 +105,7 @@ public class GAskPacketHandler implements IPacketHandler {
     public void Client_Handle_Question	(INetworkManager manager, Packet250CustomPayload packet, Player player,DataInputStream is) throws IOException
     {
     	GAskQuestion o = new GAskQuestion("unknown");
+    	int iGroupID = is.readShort();
     	int iQuestionID = is.readShort();
     	
     	o.q = is.readUTF();
@@ -102,23 +119,24 @@ public class GAskPacketHandler implements IPacketHandler {
         FMLLog.info("Client_Handle_Question %s %d",o.q,o.answers.length);
 
 		Minecraft mc = FMLClientHandler.instance().getClient();
-    	mc.displayGuiScreen(new GAskGui(iQuestionID,o));
+    	mc.displayGuiScreen(new GAskGui(iGroupID,iQuestionID,o));
     }
 
     
     // ---------------------- send
     
-    public static void SendToPlayer_Question (NetServerHandler player,int iQuestionID,GAskQuestion o)
+    public static void SendToPlayer_Question (NetServerHandler player,GAskQuestionGroup group,int iQuestionID,GAskQuestion o)
     {
 		if (o == null) return;
 
 		try {
-			int minest = 2 + 2+o.q.length() + 2+40*o.answers.length + 2+40*o.answers_freetext.length;
+			int minest = 2 + 2+2 + 2+o.q.length() + 2+40*o.answers.length + 2+40*o.answers_freetext.length;
 			ByteArrayOutputStream bos = new ByteArrayOutputStream(minest); // just a minimal estimate
 			DataOutputStream os = new DataOutputStream(bos);
 
 	        os.writeShort(Command.AskChunks_S2C_Question.ordinal());
 
+	        os.writeShort(group.groupid);
 	        os.writeShort(iQuestionID);
 
 			os.writeUTF(o.q);
@@ -139,13 +157,14 @@ public class GAskPacketHandler implements IPacketHandler {
 		}
     }
     
-    public static void SendToServer_Answer (int iQuestionID,int iAnswerID,String sAnswer)
+    public static void SendToServer_Answer (int iGroupID,int iQuestionID,int iAnswerID,String sAnswer)
     {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream(2*2+2+sAnswer.length());
 		DataOutputStream outputStream = new DataOutputStream(bos);
 		
 		try {
 	        outputStream.writeShort(Command.AskChunks_C2S_Answer.ordinal());
+	        outputStream.writeShort(iGroupID);
 	        outputStream.writeShort(iQuestionID);
 	        outputStream.writeShort(iAnswerID);
 	        outputStream.writeUTF(sAnswer);
