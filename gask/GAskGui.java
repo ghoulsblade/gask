@@ -6,11 +6,14 @@ import gask.GAsk.GAskQuestion;
 import java.util.ArrayList;
 import java.util.Collections;
 
-import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiSmallButton;
 import net.minecraft.client.gui.GuiTextField;
+import net.minecraft.util.ResourceLocation;
+
+import org.lwjgl.opengl.GL11;
+
 import cpw.mods.fml.client.FMLClientHandler;
 
 public class GAskGui extends GuiScreen {
@@ -19,6 +22,10 @@ public class GAskGui extends GuiScreen {
 	GAskQuestion mQ;
 	GuiTextField answer_freetext;
 
+    private static final ResourceLocation bookGuiTextures = new ResourceLocation("textures/gui/book.png");
+    private int bookImageWidth = 192;
+    private int bookImageHeight = 192;
+
     public GAskGui(int _iGroupID,int _iQuestionID,GAskQuestion o)
     {
     	// this.editingPlayer = par1EntityPlayer;
@@ -26,6 +33,13 @@ public class GAskGui extends GuiScreen {
     	iQuestionID = _iQuestionID;
     	mQ = o;
     	GAskUtils.debug("GAskGui created");
+    }
+
+    /**
+     * Called when the screen is unloaded. Used to disable keyboard repeat events
+     */
+    public void onGuiClosed() {
+    	// int a = 3+5;
     }
     
     public GAskQuestion getQuestion ()
@@ -159,7 +173,15 @@ public class GAskGui extends GuiScreen {
      */
     public void drawScreen(int par1, int par2, float par3)
     {
-        this.drawDefaultBackground();
+    	// see also GuiScreenBook
+        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+        this.mc.getTextureManager().bindTexture(bookGuiTextures);
+        int k = (this.width - this.bookImageWidth) / 2;
+        byte b0 = 2;
+        this.drawTexturedModalRect(k, b0, 0, 0, this.bookImageWidth, this.bookImageHeight);
+
+
+        //this.drawDefaultBackground();
 
 		GAsk.GAskQuestion o = getQuestion();
         if (o == null) return;
